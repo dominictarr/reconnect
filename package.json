@@ -7,7 +7,7 @@
     "url": "git://github.com/dominictarr/reconnect.git"
   },
   "dependencies": {
-    "backoff": "~0.3.0",
+    "backoff": "~1.0.0",
     "shoe": "0.0.4"
   },
   "devDependencies": {
