@@ -5,16 +5,19 @@ var net       = require('net')
 
 var port = Math.round(1025 + Math.random() * 40000)
 
-var server = net.createServer (mac(function () {
-  console.log('server connected!')
-  server.close()
+var times = 0
+var server = net.createServer (mac(function onConnect(stream) {
+  console.log('server connected!', times)
+  if(++times >= 2) {
+    reconnector.reconnect = false
+    server.close()
+  }
+  stream.destroy()
+
 }).times(2))
 
-var times = 1
 var reconnector = reconnect({initialDelay: 10}, mac(function (stream) {
   console.log('connected!')
-  reconnector.reconnect = times++ < 2
-  reconnector.disconnect()
 }).times(2))
 
 var connect = mac(function () {
