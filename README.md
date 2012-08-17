@@ -36,15 +36,20 @@ these arguments will be used for every subsequent connection attempt.
 
 ### emit('connect', stream)
 
-emitted when ever a new connection is made.
+emitted when a new connection is made (that includes after a disconnection!)
 
 ### emit('disconnect', stream)
 
 emitted when the stream has disconnected.
 
+### emit ('backoff', attempts, delay)
+
+reemitted from [backoff](https://github.com/MathieuTurcotte/node-backoff) 
+when reconnect is waiting for the next time to connect.
+
 ### emit ('reconnect', attempts, delay)
 
-reemitted from [backoff](https://github.com/MathieuTurcotte/node-backoff)
+emitted when attempting a new connection.
 
 ### reconnector.reconnect
 
