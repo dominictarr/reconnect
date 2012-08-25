@@ -15,6 +15,7 @@ reconnect(function (stream) {
   //called every time the connection is remade.
   //only one connection will ever be live at one time.
 }).connect(port)
+```
 
 ## API
 
