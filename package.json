@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "backoff": "~1.0.0",
-    "shoe": "0.0.4"
+    "shoe": "~0.0.7"
   },
   "devDependencies": {
     "tap": "0.3.0",
