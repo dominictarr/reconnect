@@ -16,9 +16,9 @@ function (createConnection) {
     if(onConnect)
       emitter.on('connect', onConnect)
 
-    backoff = (backoff[opts.type] || backoff.fibonacci) (opts)
+    var backoffMethod = (backoff[opts.type] || backoff.fibonacci) (opts)
 
-    backoff.on('backoff', function (n, d) {
+    backoffMethod.on('backoff', function (n, d) {
       emitter.emit('backoff', n, d)
     })
 
@@ -40,11 +40,11 @@ function (createConnection) {
         emitter.emit('disconnect', con)
 
         if(!emitter.reconnect) return
-        backoff.backoff()
+        backoffMethod.backoff()
       }
 
       con.on('connect', function () {
-        backoff.reset()
+        backoffMethod.reset()
         emitter.connected = true
         emitter.emit('connect', con)
       }).on('error', onDisconnect)
@@ -56,8 +56,8 @@ function (createConnection) {
     emitter.listen = function () {
       this.reconnect = true
       if(emitter.connected) return
-      backoff.reset()
-      backoff.on('ready', attempt)
+      backoffMethod.reset()
+      backoffMethod.on('ready', attempt)
       args = [].slice.call(arguments)
       attempt(0, 0)
       return emitter
