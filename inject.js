@@ -63,13 +63,32 @@ function (createConnection) {
       return emitter
     }
 
+    //force reconnection
+    emitter.reconnect = function () {
+      if(this.connected)
+        return emitter.disconnect()
+      
+      backoffMethod.reset()
+      attempt(0, 0)
+      return emitter
+    }
+
     emitter.disconnect = function () {
       this.reconnect = false
       if(!emitter.connected) return emitter
       
       else if(emitter._connection)
         emitter._connection.destroy()
+
+      emitter.emit('disconnect')
       return emitter
+    }
+
+    var widget
+    emitter.widget = function () {
+      if(!widget)
+        widget = require('./widget')(emitter)
+      return widget
     }
 
     return emitter
