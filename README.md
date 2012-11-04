@@ -76,6 +76,22 @@ module.exports = inject(function () {
 you must return a stream, and it must emit a 'connect' event when it has
 actually connected to the server like in [net](http://nodejs.org/api/net.html)
 
+## Widget
+
+Also, there is a small widget to show current connection status.
+
+``` js
+var reconnect = require('reconnect')
+
+var r = reconnect(function (stream) {
+  ...
+})
+//add the widget to the page.
+
+document.body.appendChild(r.widget())
+
+```
+
 ## License
 
 MIT
