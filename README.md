@@ -25,6 +25,15 @@ if `opts` is an object it will be passed to [backoff](https://github.com/Mathieu
 which handles throtteling the reconnection attempts. it also accepts a `type` parameter, which may 
 be either `'fibonacci'` or `'exponential'`.
 
+``` js
+//example opts
+var opts = {
+  randomisationFactor: 0,
+  initialDelay: 10,
+  maxDelay: 300
+}
+```
+
 `opts` is optional.
 
 passing `onConnect` to reconnect is short hand for `reconnect(opts).on('connect', onConnect)`
