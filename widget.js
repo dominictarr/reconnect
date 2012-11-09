@@ -3,7 +3,15 @@ var h = require('h')
 
 module.exports = function (emitter) {
   var style = {}
-  var el = h('a', {href: '#', style: style, click: emitter.disconnect})
+  var el = h('a', {
+    href: '#', 
+    style: style, 
+    click: function () {
+      emitter.connected 
+        ? emitter.disconnect()
+        : emitter.reconnect()
+    }
+  })
   var int
   emitter.on('reconnect', function (n, d) {
     var delay = Math.round(d / 1000) + 1
