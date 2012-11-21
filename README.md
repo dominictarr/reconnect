@@ -15,6 +15,7 @@ reconnect(function (stream) {
   //called every time the connection is remade.
   //only one connection will ever be live at one time.
 }).connect(port)
+```
 
 ## API
 
@@ -23,6 +24,15 @@ reconnect(function (stream) {
 if `opts` is an object it will be passed to [backoff](https://github.com/MathieuTurcotte/node-backoff)
 which handles throtteling the reconnection attempts. it also accepts a `type` parameter, which may 
 be either `'fibonacci'` or `'exponential'`.
+
+``` js
+//example opts
+var opts = {
+  randomisationFactor: 0,
+  initialDelay: 10,
+  maxDelay: 300
+}
+```
 
 `opts` is optional.
 
@@ -74,6 +84,22 @@ module.exports = inject(function () {
 
 you must return a stream, and it must emit a 'connect' event when it has
 actually connected to the server like in [net](http://nodejs.org/api/net.html)
+
+## Widget
+
+Also, there is a small widget to show current connection status.
+
+``` js
+var reconnect = require('reconnect')
+
+var r = reconnect(function (stream) {
+  ...
+})
+//add the widget to the page.
+
+document.body.appendChild(r.widget())
+
+```
 
 ## License
 
