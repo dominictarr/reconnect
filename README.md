@@ -1,7 +1,7 @@
 # reconnect
 
 reconnect to a network stream, (currently supports [tcp](http://nodejs.org/api/net.html),
-and [sockjs-stream](https://github.com/Raynos/sockjs-stream) on the client-side.
+and [shoe](https://github.com/substack/shoe) on the client-side.
 
 ## Example
 
@@ -41,7 +41,7 @@ passing `onConnect` to reconnect is short hand for `reconnect(opts).on('connect'
 ### reconnect.connect (...)
 
 attempt to connect. the arguments will be passed onto the underlying stream type.
-(either you are calling `SockJS(uri)` or `net.connect(port)`)
+(either you are calling `shoe(uri)` or `net.connect(port)`)
 these arguments will be used for every subsequent connection attempt.
 
 ### emit('connect', stream)

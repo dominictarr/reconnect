@@ -1,5 +1,5 @@
 
-var shoe = require('sockjs-stream')
+var shoe = require('shoe')
 
 module.exports = require('./inject')(function (){
   var args = [].slice.call(arguments)

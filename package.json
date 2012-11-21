@@ -15,7 +15,7 @@
     "tap": "0.3.0",
     "macgyver": "1.7.0"
   },
-  "browserify": "./sock",
+  "browserify": "./shoe",
   "scripts": {
     "test": "tap test"
   },
