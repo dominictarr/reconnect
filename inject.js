@@ -24,17 +24,23 @@ function (createConnection) {
 
     var args
     function attempt (n, delay) {
+      if(emitter.connected) return
       if(!emitter.reconnect) return
 
       emitter.emit('reconnect', n, delay)
       var con = createConnection.apply(null, args)
       emitter._connection = con
+      
       function onDisconnect () {
-
         emitter.connected = false
         con.removeListener('error', onDisconnect)
         con.removeListener('close', onDisconnect)
         con.removeListener('end'  , onDisconnect)
+
+        //hack to make http not crash.
+        //HTTP IS THE WORST PROTOCOL.
+        if(con.constructor.name == 'Request')
+          con.on('error', function () {})
 
         //emit disconnect before checking reconnect, so user has a chance to decide not to.
         emitter.emit('disconnect', con)
@@ -42,24 +48,28 @@ function (createConnection) {
         if(!emitter.reconnect) return
         backoffMethod.backoff()
       }
-      function onConnect () {
-        backoffMethod.reset()
-        emitter.connected = true
 
-        con.removeListener('connect', onConnect)
-        con.removeListener('response', onConnect)
-
-        emitter.emit('connect', con)
-
-      }
-      //listen for 'connect' and 'response', so that reconnect works with http.
-      //I hope I don't come to regret supporting http here
       con
-        .on('connect', onConnect)
-        .on('response', onConnect)
         .on('error', onDisconnect)
         .on('close', onDisconnect)
         .on('end'  , onDisconnect)
+
+      if(con.constructor.name == 'Request') {
+        emitter.connected = true
+        emitter.emit('connect', con)
+        con.once('data', function () {
+          //this is the only way to know for sure that data is coming...
+          backoffMethod.reset()
+        })
+      } else {
+        con
+          .on('connect', function () {
+            backoffMethod.reset()
+            emitter.connected = true
+            con.removeListener('connect', onConnect)
+            emitter.emit('connect', con)
+          })
+      }
     }
 
     emitter.connect =
