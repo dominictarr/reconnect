@@ -42,12 +42,22 @@ function (createConnection) {
         if(!emitter.reconnect) return
         backoffMethod.backoff()
       }
-
-      con.on('connect', function () {
+      function onConnect () {
         backoffMethod.reset()
         emitter.connected = true
+
+        con.removeListener('connect', onConnect)
+        con.removeListener('response', onConnect)
+
         emitter.emit('connect', con)
-      }).on('error', onDisconnect)
+
+      }
+      //listen for 'connect' and 'response', so that reconnect works with http.
+      //I hope I don't come to regret supporting http here
+      con
+        .on('connect', onConnect)
+        .on('response', onConnect)
+        .on('error', onDisconnect)
         .on('close', onDisconnect)
         .on('end'  , onDisconnect)
     }
