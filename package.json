@@ -1,6 +1,6 @@
 {
   "name": "reconnect",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "homepage": "https://github.com/dominictarr/reconnect",
   "repository": {
     "type": "git",
@@ -9,7 +9,8 @@
   "dependencies": {
     "backoff": "~1.0.0",
     "sockjs-stream": "~0.1.2",
-    "h": "~0.1.0"
+    "h": "~0.1.0",
+    "request": "~2.12.0"
   },
   "devDependencies": {
     "tap": "0.3.0",
