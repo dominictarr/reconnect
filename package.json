@@ -9,8 +9,9 @@
   "dependencies": {
     "backoff": "~1.0.0",
     "sockjs-stream": "~0.1.2",
-    "h": "~0.1.0",
-    "request": "~2.12.0"
+    "request": "~2.12.0",
+    "hyperscript": "~1.0.1",
+    "shoe": "0.0.7"
   },
   "devDependencies": {
     "tap": "0.3.0",
