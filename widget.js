@@ -1,17 +1,17 @@
 
-var h = require('h')
+var h = require('hyperscript')
 
 module.exports = function (emitter) {
   var style = {}
   var el = h('a', {
     href: '#', 
     style: style, 
-    click: function () {
+    onclick: function () {
       emitter.connected 
         ? emitter.disconnect()
         : emitter.reconnect()
     }
-  })
+  }, 'connecting...')
   var int
   emitter.on('reconnect', function (n, d) {
     var delay = Math.round(d / 1000) + 1
