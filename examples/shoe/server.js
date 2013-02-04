@@ -3,7 +3,9 @@ var ecstatic = require('ecstatic')(__dirname + '/static');
 var shoe = require('shoe');
 
 var server = http.createServer(ecstatic);
-server.listen(9999);
+server.listen(3000, function () {
+  console.log('listening on 3000')
+});
 
 var sock = shoe(function (stream) {
     var iv = setInterval(function () {

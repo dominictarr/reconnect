@@ -7,12 +7,12 @@
     var cached = require.cache[resolved];
     var res = cached? cached.exports : mod();
     return res;
-}
+};
 
 require.paths = [];
 require.modules = {};
 require.cache = {};
-require.extensions = [".js",".coffee"];
+require.extensions = [".js",".coffee",".json"];
 
 require._core = {
     'assert': true,
@@ -139,10 +139,13 @@ require.alias = function (from, to) {
 
 (function () {
     var process = {};
+    var global = typeof window !== 'undefined' ? window : {};
+    var definedProcess = false;
     
     require.define = function (filename, fn) {
-        if (require.modules.__browserify_process) {
+        if (!definedProcess && require.modules.__browserify_process) {
             process = require.modules.__browserify_process();
+            definedProcess = true;
         }
         
         var dirname = require._core[filename]
@@ -151,7 +154,14 @@ require.alias = function (from, to) {
         ;
         
         var require_ = function (file) {
-            return require(file, dirname);
+            var requiredModule = require(file, dirname);
+            var cached = require.cache[require.resolve(file, dirname)];
+
+            if (cached && cached.parent === null) {
+                cached.parent = module_;
+            }
+
+            return requiredModule;
         };
         require_.resolve = function (name) {
             return require.resolve(name, dirname);
@@ -159,7 +169,13 @@ require.alias = function (from, to) {
         require_.modules = require.modules;
         require_.define = require.define;
         require_.cache = require.cache;
-        var module_ = { exports : {} };
+        var module_ = {
+            id : filename,
+            filename: filename,
+            exports : {},
+            loaded : false,
+            parent: null
+        };
         
         require.modules[filename] = function () {
             require.cache[filename] = module_;
@@ -170,15 +186,17 @@ require.alias = function (from, to) {
                 module_.exports,
                 dirname,
                 filename,
-                process
+                process,
+                global
             );
+            module_.loaded = true;
             return module_.exports;
         };
     };
 })();
 
 
-require.define("path",function(require,module,exports,__dirname,__filename,process){function filter (xs, fn) {
+require.define("path",function(require,module,exports,__dirname,__filename,process,global){function filter (xs, fn) {
     var res = [];
     for (var i = 0; i < xs.length; i++) {
         if (fn(xs[i], i, xs)) res.push(xs[i]);
@@ -312,17 +330,24 @@ exports.basename = function(path, ext) {
 exports.extname = function(path) {
   return splitPathRe.exec(path)[3] || '';
 };
+
 });
 
-require.define("__browserify_process",function(require,module,exports,__dirname,__filename,process){var process = module.exports = {};
+require.define("__browserify_process",function(require,module,exports,__dirname,__filename,process,global){var process = module.exports = {};
 
 process.nextTick = (function () {
-    var queue = [];
+    var canSetImmediate = typeof window !== 'undefined'
+        && window.setImmediate;
     var canPost = typeof window !== 'undefined'
         && window.postMessage && window.addEventListener
     ;
-    
+
+    if (canSetImmediate) {
+        return function (f) { return window.setImmediate(f) };
+    }
+
     if (canPost) {
+        var queue = [];
         window.addEventListener('message', function (ev) {
             if (ev.source === window && ev.data === 'browserify-tick') {
                 ev.stopPropagation();
@@ -332,14 +357,15 @@ process.nextTick = (function () {
                 }
             }
         }, true);
-    }
-    
-    return function (fn) {
-        if (canPost) {
+
+        return function nextTick(fn) {
             queue.push(fn);
             window.postMessage('browserify-tick', '*');
-        }
-        else setTimeout(fn, 0);
+        };
+    }
+
+    return function nextTick(fn) {
+        setTimeout(fn, 0);
     };
 })();
 
@@ -362,113 +388,26 @@ process.binding = function (name) {
         cwd = path.resolve(dir, cwd);
     };
 })();
+
 });
 
-require.define("vm",function(require,module,exports,__dirname,__filename,process){module.exports = require("vm-browserify")});
-
-require.define("/node_modules/vm-browserify/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"index.js"}});
-
-require.define("/node_modules/vm-browserify/index.js",function(require,module,exports,__dirname,__filename,process){var Object_keys = function (obj) {
-    if (Object.keys) return Object.keys(obj)
-    else {
-        var res = [];
-        for (var key in obj) res.push(key)
-        return res;
-    }
-};
-
-var forEach = function (xs, fn) {
-    if (xs.forEach) return xs.forEach(fn)
-    else for (var i = 0; i < xs.length; i++) {
-        fn(xs[i], i, xs);
-    }
-};
-
-var Script = exports.Script = function NodeScript (code) {
-    if (!(this instanceof Script)) return new Script(code);
-    this.code = code;
-};
-
-Script.prototype.runInNewContext = function (context) {
-    if (!context) context = {};
-    
-    var iframe = document.createElement('iframe');
-    if (!iframe.style) iframe.style = {};
-    iframe.style.display = 'none';
-    
-    document.body.appendChild(iframe);
-    
-    var win = iframe.contentWindow;
-    
-    forEach(Object_keys(context), function (key) {
-        win[key] = context[key];
-    });
-     
-    if (!win.eval && win.execScript) {
-        // win.eval() magically appears when this is called in IE:
-        win.execScript('null');
-    }
-    
-    var res = win.eval(this.code);
-    
-    forEach(Object_keys(win), function (key) {
-        context[key] = win[key];
-    });
-    
-    document.body.removeChild(iframe);
-    
-    return res;
-};
-
-Script.prototype.runInThisContext = function () {
-    return eval(this.code); // maybe...
-};
-
-Script.prototype.runInContext = function (context) {
-    // seems to be just runInNewContext on magical context objects which are
-    // otherwise indistinguishable from objects except plain old objects
-    // for the parameter segfaults node
-    return this.runInNewContext(context);
-};
-
-forEach(Object_keys(Script.prototype), function (name) {
-    exports[name] = Script[name] = function (code) {
-        var s = Script(code);
-        return s[name].apply(s, [].slice.call(arguments, 1));
-    };
+require.define("/package.json",function(require,module,exports,__dirname,__filename,process,global){module.exports = {"browserify":"./shoe"}
 });
 
-exports.createScript = function (code) {
-    return exports.Script(code);
-};
-
-exports.createContext = Script.createContext = function (context) {
-    // not really sure what this one does
-    // seems to just make a shallow copy
-    var copy = {};
-    if(typeof context === 'object') {
-        forEach(Object_keys(context), function (key) {
-            copy[key] = context[key];
-        });
-    }
-    return copy;
-};
-});
-
-require.define("/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"browserify":"./shoe"}});
-
-require.define("/shoe.js",function(require,module,exports,__dirname,__filename,process){
+require.define("/shoe.js",function(require,module,exports,__dirname,__filename,process,global){
 var shoe = require('shoe')
 
-module.exports = require('./reconnect')(function (){ 
+module.exports = require('./inject')(function (){
   var args = [].slice.call(arguments)
   return shoe.apply(null, args)
 })
+
 });
 
-require.define("/node_modules/shoe/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"index.js","browserify":"browser.js"}});
+require.define("/node_modules/shoe/package.json",function(require,module,exports,__dirname,__filename,process,global){module.exports = {"main":"index.js","browserify":"browser.js"}
+});
 
-require.define("/node_modules/shoe/browser.js",function(require,module,exports,__dirname,__filename,process){var Stream = require('stream');
+require.define("/node_modules/shoe/browser.js",function(require,module,exports,__dirname,__filename,process,global){var Stream = require('stream');
 var sockjs = require('sockjs-client');
 
 module.exports = function (uri, cb) {
@@ -534,9 +473,10 @@ module.exports = function (uri, cb) {
     
     return stream;
 };
+
 });
 
-require.define("stream",function(require,module,exports,__dirname,__filename,process){var events = require('events');
+require.define("stream",function(require,module,exports,__dirname,__filename,process,global){var events = require('events');
 var util = require('util');
 
 function Stream() {
@@ -655,9 +595,10 @@ Stream.prototype.pipe = function(dest, options) {
   // Allow for unix-like usage: A.pipe(B).pipe(C)
   return dest;
 };
+
 });
 
-require.define("events",function(require,module,exports,__dirname,__filename,process){if (!process.EventEmitter) process.EventEmitter = function () {};
+require.define("events",function(require,module,exports,__dirname,__filename,process,global){if (!process.EventEmitter) process.EventEmitter = function () {};
 
 var EventEmitter = exports.EventEmitter = process.EventEmitter;
 var isArray = typeof Array.isArray === 'function'
@@ -666,6 +607,13 @@ var isArray = typeof Array.isArray === 'function'
         return Object.prototype.toString.call(xs) === '[object Array]'
     }
 ;
+function indexOf (xs, x) {
+    if (xs.indexOf) return xs.indexOf(x);
+    for (var i = 0; i < xs.length; i++) {
+        if (x === xs[i]) return i;
+    }
+    return -1;
+}
 
 // By default EventEmitters will print a warning if more than
 // 10 listeners are added to it. This is a useful default which
@@ -802,7 +750,7 @@ EventEmitter.prototype.removeListener = function(type, listener) {
   var list = this._events[type];
 
   if (isArray(list)) {
-    var i = list.indexOf(listener);
+    var i = indexOf(list, listener);
     if (i < 0) return this;
     list.splice(i, 1);
     if (list.length == 0)
@@ -828,9 +776,15 @@ EventEmitter.prototype.listeners = function(type) {
   }
   return this._events[type];
 };
+
 });
 
-require.define("util",function(require,module,exports,__dirname,__filename,process){var events = require('events');
+require.define("util",function(require,module,exports,__dirname,__filename,process,global){var events = require('events');
+
+exports.isArray = isArray;
+exports.isDate = function(obj){return Object.prototype.toString.call(obj) === '[object Date]'};
+exports.isRegExp = function(obj){return Object.prototype.toString.call(obj) === '[object RegExp]'};
+
 
 exports.print = function () {};
 exports.puts = function () {};
@@ -1142,11 +1096,47 @@ exports.inherits = function(ctor, superCtor) {
     }
   });
 };
+
+var formatRegExp = /%[sdj%]/g;
+exports.format = function(f) {
+  if (typeof f !== 'string') {
+    var objects = [];
+    for (var i = 0; i < arguments.length; i++) {
+      objects.push(exports.inspect(arguments[i]));
+    }
+    return objects.join(' ');
+  }
+
+  var i = 1;
+  var args = arguments;
+  var len = args.length;
+  var str = String(f).replace(formatRegExp, function(x) {
+    if (x === '%%') return '%';
+    if (i >= len) return x;
+    switch (x) {
+      case '%s': return String(args[i++]);
+      case '%d': return Number(args[i++]);
+      case '%j': return JSON.stringify(args[i++]);
+      default:
+        return x;
+    }
+  });
+  for(var x = args[i]; i < len; x = args[++i]){
+    if (x === null || typeof x !== 'object') {
+      str += ' ' + x;
+    } else {
+      str += ' ' + exports.inspect(x);
+    }
+  }
+  return str;
+};
+
 });
 
-require.define("/node_modules/shoe/node_modules/sockjs-client/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"sockjs.js"}});
+require.define("/node_modules/shoe/node_modules/sockjs-client/package.json",function(require,module,exports,__dirname,__filename,process,global){module.exports = {"main":"sockjs.js"}
+});
 
-require.define("/node_modules/shoe/node_modules/sockjs-client/sockjs.js",function(require,module,exports,__dirname,__filename,process){/* SockJS client, version 0.3.1.7.ga67f.dirty, http://sockjs.org, MIT License
+require.define("/node_modules/shoe/node_modules/sockjs-client/sockjs.js",function(require,module,exports,__dirname,__filename,process,global){/* SockJS client, version 0.3.1.7.ga67f.dirty, http://sockjs.org, MIT License
 
 Copyright (c) 2011-2012 VMware, Inc.
 
@@ -3469,9 +3459,10 @@ if (typeof module === 'object' && module && module.exports) {
 
 // [*] End of lib/all.js
 
+
 });
 
-require.define("/reconnect.js",function(require,module,exports,__dirname,__filename,process){var EventEmitter = require('events').EventEmitter
+require.define("/inject.js",function(require,module,exports,__dirname,__filename,process,global){var EventEmitter = require('events').EventEmitter
 var backoff = require('backoff')
 
 module.exports =
@@ -3488,52 +3479,100 @@ function (createConnection) {
 
     if(onConnect)
       emitter.on('connect', onConnect)
-    backoff = (backoff[opts.type] || backoff.fibonacci) (opts)
+
+    var backoffMethod = (backoff[opts.type] || backoff.fibonacci) (opts)
+
+    backoffMethod.on('backoff', function (n, d) {
+      emitter.emit('backoff', n, d)
+    })
+
     var args
     function attempt (n, delay) {
+      if(emitter.connected) return
       if(!emitter.reconnect) return
 
       emitter.emit('reconnect', n, delay)
       var con = createConnection.apply(null, args)
       emitter._connection = con
+      
       function onDisconnect () {
-
         emitter.connected = false
         con.removeListener('error', onDisconnect)
         con.removeListener('close', onDisconnect)
         con.removeListener('end'  , onDisconnect)
 
+        //hack to make http not crash.
+        //HTTP IS THE WORST PROTOCOL.
+        if(con.constructor.name == 'Request')
+          con.on('error', function () {})
+
         //emit disconnect before checking reconnect, so user has a chance to decide not to.
         emitter.emit('disconnect', con)
 
         if(!emitter.reconnect) return
-        backoff.backoff()
+        backoffMethod.backoff()
       }
 
-      con.on('connect', function () {
-        backoff.reset()
-        emitter.connected = true
-        emitter.emit('connect', con)
-      }).on('error', onDisconnect)
+      con
+        .on('error', onDisconnect)
         .on('close', onDisconnect)
         .on('end'  , onDisconnect)
+
+      if(con.constructor.name == 'Request') {
+        emitter.connected = true
+        emitter.emit('connect', con)
+        con.once('data', function () {
+          //this is the only way to know for sure that data is coming...
+          backoffMethod.reset()
+        })
+      } else {
+        con
+          .on('connect', function () {
+            backoffMethod.reset()
+            emitter.connected = true
+            con.removeListener('connect', onConnect)
+            emitter.emit('connect', con)
+          })
+      }
     }
 
     emitter.connect =
     emitter.listen = function () {
+      this.reconnect = true
       if(emitter.connected) return
-      backoff.reset()
-      backoff.on('backoff', attempt)
+      backoffMethod.reset()
+      backoffMethod.on('ready', attempt)
       args = [].slice.call(arguments)
       attempt(0, 0)
       return emitter
     }
 
+    //force reconnection
+    emitter.reconnect = function () {
+      if(this.connected)
+        return emitter.disconnect()
+      
+      backoffMethod.reset()
+      attempt(0, 0)
+      return emitter
+    }
+
     emitter.disconnect = function () {
-      if(!emitter.connected) return false
+      this.reconnect = false
+      if(!emitter.connected) return emitter
+      
       else if(emitter._connection)
         emitter._connection.destroy()
-      return this
+
+      emitter.emit('disconnect')
+      return emitter
+    }
+
+    var widget
+    emitter.widget = function () {
+      if(!widget)
+        widget = require('./widget')(emitter)
+      return widget
     }
 
     return emitter
@@ -3541,12 +3580,12 @@ function (createConnection) {
 
 }
 
-
 });
 
-require.define("/node_modules/backoff/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {}});
+require.define("/node_modules/backoff/package.json",function(require,module,exports,__dirname,__filename,process,global){module.exports = {}
+});
 
-require.define("/node_modules/backoff/index.js",function(require,module,exports,__dirname,__filename,process){/*
+require.define("/node_modules/backoff/index.js",function(require,module,exports,__dirname,__filename,process,global){/*
  * Copyright (c) 2012 Mathieu Turcotte
  * Licensed under the MIT license.
  */
@@ -3568,11 +3607,6 @@ module.exports.fibonacci = function(options) {
     return new Backoff(new FibonacciBackoffStrategy(options));
 };
 
-module.exports.fibonnaci = function(options) {
-    console.log('Deprecated: use backoff.fibonacci instead.');
-    return new module.exports.fibonacci(options);
-};
-
 /**
  * Constructs an exponential backoff.
  * @param options Exponential strategy arguments.
@@ -3582,9 +3616,10 @@ module.exports.exponential = function(options) {
     return new Backoff(new ExponentialBackoffStrategy(options));
 };
 
+
 });
 
-require.define("/node_modules/backoff/lib/backoff.js",function(require,module,exports,__dirname,__filename,process){/*
+require.define("/node_modules/backoff/lib/backoff.js",function(require,module,exports,__dirname,__filename,process,global){/*
  * Copyright (c) 2012 Mathieu Turcotte
  * Licensed under the MIT license.
  */
@@ -3621,6 +3656,7 @@ Backoff.prototype.backoff = function() {
 
     this.backoffDelay_ = this.backoffStrategy_.next();
     this.timeoutID_ = setTimeout(this.handlers.backoff, this.backoffDelay_);
+    this.emit('backoff', this.backoffNumber_, this.backoffDelay_);
 };
 
 /**
@@ -3629,7 +3665,7 @@ Backoff.prototype.backoff = function() {
  */
 Backoff.prototype.onBackoff_ = function() {
     this.timeoutID_ = -1;
-    this.emit('backoff', this.backoffNumber_++, this.backoffDelay_);
+    this.emit('ready', this.backoffNumber_++, this.backoffDelay_);
 };
 
 /**
@@ -3645,9 +3681,10 @@ Backoff.prototype.reset = function() {
 
 module.exports = Backoff;
 
+
 });
 
-require.define("/node_modules/backoff/lib/strategy/fibonacci.js",function(require,module,exports,__dirname,__filename,process){/*
+require.define("/node_modules/backoff/lib/strategy/fibonacci.js",function(require,module,exports,__dirname,__filename,process,global){/*
  * Copyright (c) 2012 Mathieu Turcotte
  * Licensed under the MIT license.
  */
@@ -3683,9 +3720,10 @@ FibonacciBackoffStrategy.prototype.reset_ = function() {
 
 module.exports = FibonacciBackoffStrategy;
 
+
 });
 
-require.define("/node_modules/backoff/lib/strategy/strategy.js",function(require,module,exports,__dirname,__filename,process){/*
+require.define("/node_modules/backoff/lib/strategy/strategy.js",function(require,module,exports,__dirname,__filename,process,global){/*
  * Copyright (c) 2012 Mathieu Turcotte
  * Licensed under the MIT license.
  */
@@ -3782,9 +3820,10 @@ BackoffStrategy.prototype.reset_ = function() {
 
 module.exports = BackoffStrategy;
 
+
 });
 
-require.define("/node_modules/backoff/lib/strategy/exponential.js",function(require,module,exports,__dirname,__filename,process){/*
+require.define("/node_modules/backoff/lib/strategy/exponential.js",function(require,module,exports,__dirname,__filename,process,global){/*
  * Copyright (c) 2012 Mathieu Turcotte
  * Licensed under the MIT license.
  */
@@ -3819,11 +3858,145 @@ ExponentialBackoffStrategy.prototype.reset_ = function() {
 
 module.exports = ExponentialBackoffStrategy;
 
+
 });
 
-require.define("/examples/shoe/node_modules/domready/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"./ready.js"}});
+require.define("/widget.js",function(require,module,exports,__dirname,__filename,process,global){
+var h = require('hyperscript')
 
-require.define("/examples/shoe/node_modules/domready/ready.js",function(require,module,exports,__dirname,__filename,process){/*!
+module.exports = function (emitter) {
+  var style = {}
+  var el = h('a', {
+    href: '#', 
+    style: style, 
+    onclick: function () {
+      emitter.connected 
+        ? emitter.disconnect()
+        : emitter.reconnect()
+    }
+  }, 'connecting...')
+  var int
+  emitter.on('reconnect', function (n, d) {
+    var delay = Math.round(d / 1000) + 1
+    console.log(n, d)
+    el.innerText = 'reconnect in ' + delay
+    clearInterval(int)
+    int = setInterval(function () {
+      el.innerText = delay ? 'reconnect in ' + --delay : 'reconnecting...'
+    }, 1e3)
+  })
+  emitter.on('connect',   function () {
+    el.innerText = 'connected'
+    clearInterval(int)
+  })
+  return el
+}
+
+});
+
+require.define("/node_modules/hyperscript/package.json",function(require,module,exports,__dirname,__filename,process,global){module.exports = {}
+});
+
+require.define("/node_modules/hyperscript/index.js",function(require,module,exports,__dirname,__filename,process,global){;(function () {
+
+function h() {
+  var args = [].slice.call(arguments), e = null
+  function item (l) {
+    var r
+    function parseClass (string) {
+      var m = string.split(/([\.#]?[a-zA-Z0-9_-]+)/)
+      m.forEach(function (v) {
+        var s = v.substring(1,v.length)
+        if(!v) return 
+        if(!e)
+          e = document.createElement(v)
+        else if (v[0] === '.')
+          e.classList.add(s)
+        else if (v[0] === '#')
+          e.setAttribute('id', s)
+      })
+    }
+
+    if(l == null)
+      ;
+    else if('string' === typeof l) {
+      if(!e)
+        parseClass(l)
+      else
+        e.appendChild(r = document.createTextNode(l))
+    }
+    else if('number' === typeof l 
+      || 'boolean' === typeof l
+      || l instanceof Date 
+      || l instanceof RegExp ) {
+        e.appendChild(r = document.createTextNode(l.toString()))
+    }
+    //there might be a better way to handle this...
+    else if (Array.isArray(l))
+      l.forEach(item)
+    else if(l instanceof Node)
+      e.appendChild(r = l)
+    else if(l instanceof Text)
+      e.appendChild(r = l)
+    else if ('object' === typeof l) {
+      for (var k in l) {
+        if('function' === typeof l[k]) {
+          if(/^on\w+/.test(k)) {
+            e.addEventListener(k.substring(2), l[k])
+          } else {
+            e[k] = l[k]()
+            l[k](function (v) {
+              e[k] = v
+            })
+          }
+        }
+        else if(k === 'style') {
+          for (var s in l[k]) (function(s, v) {
+            if('function' === typeof v) {
+              e.style.setProperty(s, v())
+              v(function (val) {
+                e.style.setProperty(s, val)
+              })
+            } else
+              e.style.setProperty(s, l[k][s])
+          })(s, l[k][s])
+        } else
+          e[k] = l[k]
+      }
+    } else if ('function' === typeof l) {
+      //assume it's an observable!
+      var v = l()
+      e.appendChild(r = v instanceof Node ? v : document.createTextNode(v))
+
+      l(function (v) {
+        if(v instanceof Node && r.parentElement)
+          r.parentElement.replaceChild(v, r), r = v
+        else
+          r.textContent = v
+      })
+      
+    }
+
+    return r
+  }
+  while(args.length)
+    item(args.shift())
+
+  return e
+}
+
+if(typeof module === 'object')
+ module.exports = h
+else
+  this.hyperscript = h
+})()
+
+});
+
+require.define("/examples/shoe/node_modules/domready/package.json",function(require,module,exports,__dirname,__filename,process,global){module.exports = {"main":"./ready.js"}
+});
+
+require.define("/examples/shoe/node_modules/domready/ready.js",function(require,module,exports,__dirname,__filename,process,global){/*!
   * domready (c) Dustin Diaz 2012 - License MIT
   */
 !function (name, definition) {
@@ -3876,11 +4049,13 @@ require.define("/examples/shoe/node_modules/domready/ready.js",function(require,
     function (fn) {
       loaded ? fn() : fns.push(fn)
     })
-})});
+})
+});
 
-require.define("/examples/shoe/node_modules/event-stream/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {}});
+require.define("/examples/shoe/node_modules/event-stream/package.json",function(require,module,exports,__dirname,__filename,process,global){module.exports = {}
+});
 
-require.define("/examples/shoe/node_modules/event-stream/index.js",function(require,module,exports,__dirname,__filename,process){//filter will reemit the data if cb(err,pass) pass is truthy
+require.define("/examples/shoe/node_modules/event-stream/index.js",function(require,module,exports,__dirname,__filename,process,global){//filter will reemit the data if cb(err,pass) pass is truthy
 // reduce is more tricky
 // maybe we want to group the reductions or emit progress updates occasionally
 // the most basic reduce just emits one 'data' event after it has recieved 'end'
@@ -4573,550 +4748,10 @@ es.pipeable = function () {
     console.error(process.argv[1] +' is listening for "' + opts.protocol + '" on ' + opts.host + ':' + opts.port)  
   }
 }
+
 });
 
-require.define("/examples/shoe/node_modules/event-stream/node_modules/optimist/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"./index.js"}});
-
-require.define("/examples/shoe/node_modules/event-stream/node_modules/optimist/index.js",function(require,module,exports,__dirname,__filename,process){var path = require('path');
-var wordwrap = require('wordwrap');
-
-/*  Hack an instance of Argv with process.argv into Argv
-    so people can do
-        require('optimist')(['--beeble=1','-z','zizzle']).argv
-    to parse a list of args and
-        require('optimist').argv
-    to get a parsed version of process.argv.
-*/
-
-var inst = Argv(process.argv.slice(2));
-Object.keys(inst).forEach(function (key) {
-    Argv[key] = typeof inst[key] == 'function'
-        ? inst[key].bind(inst)
-        : inst[key];
-});
-
-var exports = module.exports = Argv;
-function Argv (args, cwd) {
-    var self = {};
-    if (!cwd) cwd = process.cwd();
-    
-    self.$0 = process.argv
-        .slice(0,2)
-        .map(function (x) {
-            var b = rebase(cwd, x);
-            return x.match(/^\//) && b.length < x.length
-                ? b : x
-        })
-        .join(' ')
-    ;
-    
-    if (process.argv[1] == process.env._) {
-        self.$0 = process.env._.replace(
-            path.dirname(process.execPath) + '/', ''
-        );
-    }
-    
-    var flags = { bools : {}, strings : {} };
-    
-    self.boolean = function (bools) {
-        if (!Array.isArray(bools)) {
-            bools = [].slice.call(arguments);
-        }
-        
-        bools.forEach(function (name) {
-            flags.bools[name] = true;
-        });
-        
-        return self;
-    };
-    
-    self.string = function (strings) {
-        if (!Array.isArray(strings)) {
-            strings = [].slice.call(arguments);
-        }
-        
-        strings.forEach(function (name) {
-            flags.strings[name] = true;
-        });
-        
-        return self;
-    };
-    
-    var aliases = {};
-    self.alias = function (x, y) {
-        if (typeof x === 'object') {
-            Object.keys(x).forEach(function (key) {
-                self.alias(key, x[key]);
-            });
-        }
-        else if (Array.isArray(y)) {
-            y.forEach(function (yy) {
-                self.alias(x, yy);
-            });
-        }
-        else {
-            var zs = (aliases[x] || []).concat(aliases[y] || []).concat(x, y);
-            aliases[x] = zs.filter(function (z) { return z != x });
-            aliases[y] = zs.filter(function (z) { return z != y });
-        }
-        
-        return self;
-    };
-    
-    var demanded = {};
-    self.demand = function (keys) {
-        if (typeof keys == 'number') {
-            if (!demanded._) demanded._ = 0;
-            demanded._ += keys;
-        }
-        else if (Array.isArray(keys)) {
-            keys.forEach(function (key) {
-                self.demand(key);
-            });
-        }
-        else {
-            demanded[keys] = true;
-        }
-        
-        return self;
-    };
-    
-    var usage;
-    self.usage = function (msg, opts) {
-        if (!opts && typeof msg === 'object') {
-            opts = msg;
-            msg = null;
-        }
-        
-        usage = msg;
-        
-        if (opts) self.options(opts);
-        
-        return self;
-    };
-    
-    function fail (msg) {
-        self.showHelp();
-        if (msg) console.error(msg);
-        process.exit(1);
-    }
-    
-    var checks = [];
-    self.check = function (f) {
-        checks.push(f);
-        return self;
-    };
-    
-    var defaults = {};
-    self.default = function (key, value) {
-        if (typeof key === 'object') {
-            Object.keys(key).forEach(function (k) {
-                self.default(k, key[k]);
-            });
-        }
-        else {
-            defaults[key] = value;
-        }
-        
-        return self;
-    };
-    
-    var descriptions = {};
-    self.describe = function (key, desc) {
-        if (typeof key === 'object') {
-            Object.keys(key).forEach(function (k) {
-                self.describe(k, key[k]);
-            });
-        }
-        else {
-            descriptions[key] = desc;
-        }
-        return self;
-    };
-    
-    self.parse = function (args) {
-        return Argv(args).argv;
-    };
-    
-    self.option = self.options = function (key, opt) {
-        if (typeof key === 'object') {
-            Object.keys(key).forEach(function (k) {
-                self.options(k, key[k]);
-            });
-        }
-        else {
-            if (opt.alias) self.alias(key, opt.alias);
-            if (opt.demand) self.demand(key);
-            if (opt.default) self.default(key, opt.default);
-            
-            if (opt.boolean || opt.type === 'boolean') {
-                self.boolean(key);
-            }
-            if (opt.string || opt.type === 'string') {
-                self.string(key);
-            }
-            
-            var desc = opt.describe || opt.description || opt.desc;
-            if (desc) {
-                self.describe(key, desc);
-            }
-        }
-        
-        return self;
-    };
-    
-    var wrap = null;
-    self.wrap = function (cols) {
-        wrap = cols;
-        return self;
-    };
-    
-    self.showHelp = function (fn) {
-        if (!fn) fn = console.error;
-        fn(self.help());
-    };
-    
-    self.help = function () {
-        var keys = Object.keys(
-            Object.keys(descriptions)
-            .concat(Object.keys(demanded))
-            .concat(Object.keys(defaults))
-            .reduce(function (acc, key) {
-                if (key !== '_') acc[key] = true;
-                return acc;
-            }, {})
-        );
-        
-        var help = keys.length ? [ 'Options:' ] : [];
-        
-        if (usage) {
-            help.unshift(usage.replace(/\$0/g, self.$0), '');
-        }
-        
-        var switches = keys.reduce(function (acc, key) {
-            acc[key] = [ key ].concat(aliases[key] || [])
-                .map(function (sw) {
-                    return (sw.length > 1 ? '--' : '-') + sw
-                })
-                .join(', ')
-            ;
-            return acc;
-        }, {});
-        
-        var switchlen = longest(Object.keys(switches).map(function (s) {
-            return switches[s] || '';
-        }));
-        
-        var desclen = longest(Object.keys(descriptions).map(function (d) { 
-            return descriptions[d] || '';
-        }));
-        
-        keys.forEach(function (key) {
-            var kswitch = switches[key];
-            var desc = descriptions[key] || '';
-            
-            if (wrap) {
-                desc = wordwrap(switchlen + 4, wrap)(desc)
-                    .slice(switchlen + 4)
-                ;
-            }
-            
-            var spadding = new Array(
-                Math.max(switchlen - kswitch.length + 3, 0)
-            ).join(' ');
-            
-            var dpadding = new Array(
-                Math.max(desclen - desc.length + 1, 0)
-            ).join(' ');
-            
-            var type = null;
-            
-            if (flags.bools[key]) type = '[boolean]';
-            if (flags.strings[key]) type = '[string]';
-            
-            if (!wrap && dpadding.length > 0) {
-                desc += dpadding;
-            }
-            
-            var prelude = '  ' + kswitch + spadding;
-            var extra = [
-                type,
-                demanded[key]
-                    ? '[required]'
-                    : null
-                ,
-                defaults[key] !== undefined
-                    ? '[default: ' + JSON.stringify(defaults[key]) + ']'
-                    : null
-                ,
-            ].filter(Boolean).join('  ');
-            
-            var body = [ desc, extra ].filter(Boolean).join('  ');
-            
-            if (wrap) {
-                var dlines = desc.split('\n');
-                var dlen = dlines.slice(-1)[0].length
-                    + (dlines.length === 1 ? prelude.length : 0)
-                
-                body = desc + (dlen + extra.length > wrap - 2
-                    ? '\n'
-                        + new Array(wrap - extra.length + 1).join(' ')
-                        + extra
-                    : new Array(wrap - extra.length - dlen + 1).join(' ')
-                        + extra
-                );
-            }
-            
-            help.push(prelude + body);
-        });
-        
-        help.push('');
-        return help.join('\n');
-    };
-    
-    Object.defineProperty(self, 'argv', {
-        get : parseArgs,
-        enumerable : true,
-    });
-    
-    function parseArgs () {
-        var argv = { _ : [], $0 : self.$0 };
-        Object.keys(flags.bools).forEach(function (key) {
-            setArg(key, defaults[key] || false);
-        });
-        
-        function setArg (key, val) {
-            var num = Number(val);
-            var value = typeof val !== 'string' || isNaN(num) ? val : num;
-            if (flags.strings[key]) value = val;
-            
-            if (key in argv && !flags.bools[key]) {
-                if (!Array.isArray(argv[key])) {
-                    argv[key] = [ argv[key] ];
-                }
-                argv[key].push(value);
-            }
-            else {
-                argv[key] = value;
-            }
-            
-            (aliases[key] || []).forEach(function (x) {
-                argv[x] = argv[key];
-            });
-        }
-        
-        for (var i = 0; i < args.length; i++) {
-            var arg = args[i];
-            
-            if (arg === '--') {
-                argv._.push.apply(argv._, args.slice(i + 1));
-                break;
-            }
-            else if (arg.match(/^--.+=/)) {
-                var m = arg.match(/^--([^=]+)=(.*)/);
-                setArg(m[1], m[2]);
-            }
-            else if (arg.match(/^--no-.+/)) {
-                var key = arg.match(/^--no-(.+)/)[1];
-                setArg(key, false);
-            }
-            else if (arg.match(/^--.+/)) {
-                var key = arg.match(/^--(.+)/)[1];
-                var next = args[i + 1];
-                if (next !== undefined && !next.match(/^-/)
-                && !flags.bools[key]) {
-                    setArg(key, next);
-                    i++;
-                }
-                else if (flags.bools[key] && /true|false/.test(next)) {
-                    setArg(key, next === 'true');
-                    i++;
-                }
-                else {
-                    setArg(key, true);
-                }
-            }
-            else if (arg.match(/^-[^-]+/)) {
-                var letters = arg.slice(1,-1).split('');
-                
-                var broken = false;
-                for (var j = 0; j < letters.length; j++) {
-                    if (letters[j+1] && letters[j+1].match(/\W/)) {
-                        setArg(letters[j], arg.slice(j+2));
-                        broken = true;
-                        break;
-                    }
-                    else {
-                        setArg(letters[j], true);
-                    }
-                }
-                
-                if (!broken) {
-                    var key = arg.slice(-1)[0];
-                    
-                    if (args[i+1] && !args[i+1].match(/^-/)
-                    && !flags.bools[key]) {
-                        setArg(key, args[i+1]);
-                        i++;
-                    }
-                    else if (args[i+1] && flags.bools[key] && /true|false/.test(args[i+1])) {
-                        setArg(key, args[i+1] === 'true');
-                        i++;
-                    }
-                    else {
-                        setArg(key, true);
-                    }
-                }
-            }
-            else {
-                var n = Number(arg);
-                argv._.push(flags.strings['_'] || isNaN(n) ? arg : n);
-            }
-        }
-        
-        Object.keys(defaults).forEach(function (key) {
-            if (!(key in argv)) {
-                argv[key] = defaults[key];
-            }
-        });
-        
-        if (demanded._ && argv._.length < demanded._) {
-            fail('Not enough non-option arguments: got '
-                + argv._.length + ', need at least ' + demanded._
-            );
-        }
-        
-        var missing = [];
-        Object.keys(demanded).forEach(function (key) {
-            if (!argv[key]) missing.push(key);
-        });
-        
-        if (missing.length) {
-            fail('Missing required arguments: ' + missing.join(', '));
-        }
-        
-        checks.forEach(function (f) {
-            try {
-                if (f(argv) === false) {
-                    fail('Argument check failed: ' + f.toString());
-                }
-            }
-            catch (err) {
-                fail(err)
-            }
-        });
-        
-        return argv;
-    }
-    
-    function longest (xs) {
-        return Math.max.apply(
-            null,
-            xs.map(function (x) { return x.length })
-        );
-    }
-    
-    return self;
-};
-
-// rebase an absolute path to a relative one with respect to a base directory
-// exported for tests
-exports.rebase = rebase;
-function rebase (base, dir) {
-    var ds = path.normalize(dir).split('/').slice(1);
-    var bs = path.normalize(base).split('/').slice(1);
-    
-    for (var i = 0; ds[i] && ds[i] == bs[i]; i++);
-    ds.splice(0, i); bs.splice(0, i);
-    
-    var p = path.normalize(
-        bs.map(function () { return '..' }).concat(ds).join('/')
-    ).replace(/\/$/,'').replace(/^$/, '.');
-    return p.match(/^[.\/]/) ? p : './' + p;
-};
-});
-
-require.define("/examples/shoe/node_modules/event-stream/node_modules/optimist/node_modules/wordwrap/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"./index.js"}});
-
-require.define("/examples/shoe/node_modules/event-stream/node_modules/optimist/node_modules/wordwrap/index.js",function(require,module,exports,__dirname,__filename,process){var wordwrap = module.exports = function (start, stop, params) {
-    if (typeof start === 'object') {
-        params = start;
-        start = params.start;
-        stop = params.stop;
-    }
-    
-    if (typeof stop === 'object') {
-        params = stop;
-        start = start || params.start;
-        stop = undefined;
-    }
-    
-    if (!stop) {
-        stop = start;
-        start = 0;
-    }
-    
-    if (!params) params = {};
-    var mode = params.mode || 'soft';
-    var re = mode === 'hard' ? /\b/ : /(\S+\s+)/;
-    
-    return function (text) {
-        var chunks = text.toString()
-            .split(re)
-            .reduce(function (acc, x) {
-                if (mode === 'hard') {
-                    for (var i = 0; i < x.length; i += stop - start) {
-                        acc.push(x.slice(i, i + stop - start));
-                    }
-                }
-                else acc.push(x)
-                return acc;
-            }, [])
-        ;
-        
-        return chunks.reduce(function (lines, rawChunk) {
-            if (rawChunk === '') return lines;
-            
-            var chunk = rawChunk.replace(/\t/g, '    ');
-            
-            var i = lines.length - 1;
-            if (lines[i].length + chunk.length > stop) {
-                lines[i] = lines[i].replace(/\s+$/, '');
-                
-                chunk.split(/\n/).forEach(function (c) {
-                    lines.push(
-                        new Array(start + 1).join(' ')
-                        + c.replace(/^\s+/, '')
-                    );
-                });
-            }
-            else if (chunk.match(/\n/)) {
-                var xs = chunk.split(/\n/);
-                lines[i] += xs.shift();
-                xs.forEach(function (c) {
-                    lines.push(
-                        new Array(start + 1).join(' ')
-                        + c.replace(/^\s+/, '')
-                    );
-                });
-            }
-            else {
-                lines[i] += chunk;
-            }
-            
-            return lines;
-        }, [ new Array(start + 1).join(' ') ]).join('\n');
-    };
-};
-
-wordwrap.soft = wordwrap;
-
-wordwrap.hard = function (start, stop) {
-    return wordwrap(start, stop, { mode : 'hard' });
-};
-});
-
-require.define("/examples/shoe/client.js",function(require,module,exports,__dirname,__filename,process){var reconnect = require('../../');
+require.define("/examples/shoe/client.js",function(require,module,exports,__dirname,__filename,process,global){var reconnect = require('../../');
 var domready = require('domready');
 var es = require('event-stream');
 
@@ -5128,7 +4763,7 @@ var es = require('event-stream');
 domready(function () {
     var result = document.getElementById('result');
     
-    reconnect(function (stream) {
+    var r = reconnect(function (stream) {
       var s = es.mapSync(function (msg) {
           result.appendChild(document.createTextNode(msg));
           return String(Number(msg)^1);
@@ -5136,7 +4771,10 @@ domready(function () {
       s.pipe(stream).pipe(s);
 
     }).connect('/invert')
+
+    document.body.appendChild(r.widget())
 });
+
 });
 require("/examples/shoe/client.js");
 })();

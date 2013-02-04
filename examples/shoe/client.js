@@ -10,7 +10,7 @@ var es = require('event-stream');
 domready(function () {
     var result = document.getElementById('result');
     
-    reconnect(function (stream) {
+    var r = reconnect(function (stream) {
       var s = es.mapSync(function (msg) {
           result.appendChild(document.createTextNode(msg));
           return String(Number(msg)^1);
@@ -18,4 +18,6 @@ domready(function () {
       s.pipe(stream).pipe(s);
 
     }).connect('/invert')
+
+    document.body.appendChild(r.widget())
 });
