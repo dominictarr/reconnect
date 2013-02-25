@@ -1,30 +1,47 @@
 
 var h = require('hyperscript')
+var o = require('observable')
+//TODO make this just a small square that goes red/orange/green
 
 module.exports = function (emitter) {
-  var style = {}
-  var el = h('a', {
-    href: '#', 
-    style: style, 
+  var color = o(), count = o()
+  color('red'); count(' ')
+
+  var el = h('div', {
+    style: {
+      background: color,
+      width: '1em', height: '1em',
+      display: 'inline-block',
+      'text-align': 'center',
+      border: '1px solid black'
+    }, 
     onclick: function () {
       emitter.connected 
         ? emitter.disconnect()
-        : emitter.reconnect()
+        : emitter.connect()
     }
-  }, 'connecting...')
+  },
+  count
+  )
   var int
   emitter.on('reconnect', function (n, d) {
     var delay = Math.round(d / 1000) + 1
-    console.log(n, d)
-    el.innerText = 'reconnect in ' + delay
+    count(delay)
+    color('red')
     clearInterval(int)
     int = setInterval(function () {
-      el.innerText = delay ? 'reconnect in ' + --delay : 'reconnecting...'
+      count(delay > 0 ? --delay : 0)
+      color(delay ? 'red' :'orange')      
     }, 1e3)
   })
   emitter.on('connect',   function () {
-    el.innerText = 'connected'
+    count(' ')
+    color('green')
     clearInterval(int)
+  })
+  emitter.on('disconnect', function () {
+    //count('  ')
+    color('red')
   })
   return el
 }

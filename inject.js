@@ -46,7 +46,7 @@ function (createConnection) {
         emitter.emit('disconnect', con)
 
         if(!emitter.reconnect) return
-        backoffMethod.backoff()
+        try { backoffMethod.backoff() } catch (_) { }
       }
 
       con
@@ -78,27 +78,19 @@ function (createConnection) {
       if(emitter.connected) return
       backoffMethod.reset()
       backoffMethod.on('ready', attempt)
-      args = [].slice.call(arguments)
+      args = args || [].slice.call(arguments)
       attempt(0, 0)
       return emitter
     }
 
     //force reconnection
-    emitter.reconnect = function () {
-      if(this.connected)
-        return emitter.disconnect()
-      
-      backoffMethod.reset()
-      attempt(0, 0)
-      return emitter
-    }
 
     emitter.disconnect = function () {
       this.reconnect = false
       if(!emitter.connected) return emitter
       
       else if(emitter._connection)
-        emitter._connection.destroy()
+        emitter._connection.end()
 
       emitter.emit('disconnect')
       return emitter
