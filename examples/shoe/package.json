@@ -5,8 +5,12 @@
     "browserify": "~1.16.4",
     "ecstatic": "~0.1.6",
     "domready": "~0.2.11",
-    "event-stream": "~2.0.4"
+    "event-stream": "~2.0.4",
+    "observable": "~1.4.0"
   },
   "private": true,
-  "devDependencies": {}
+  "devDependencies": {},
+  "scripts": {
+    "start": "./build.sh && node server.js"
+  }
 }
