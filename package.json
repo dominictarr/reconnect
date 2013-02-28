@@ -11,7 +11,8 @@
     "sockjs-stream": "~0.1.2",
     "request": "~2.12.0",
     "hyperscript": "~1.0.1",
-    "shoe": "0.0.7"
+    "shoe": "0.0.7",
+    "observable": "~1.4.1"
   },
   "devDependencies": {
     "tap": "0.3.0",
