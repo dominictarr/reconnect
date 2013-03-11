@@ -31,7 +31,7 @@ function (createConnection) {
       var con = createConnection.apply(null, args)
       emitter._connection = con
       
-      function onDisconnect () {
+      function onDisconnect (err) {
         emitter.connected = false
         con.removeListener('error', onDisconnect)
         con.removeListener('close', onDisconnect)
@@ -43,7 +43,7 @@ function (createConnection) {
           con.on('error', function () {})
 
         //emit disconnect before checking reconnect, so user has a chance to decide not to.
-        emitter.emit('disconnect', con)
+        emitter.emit('disconnect', err)
 
         if(!emitter.reconnect) return
         try { backoffMethod.backoff() } catch (_) { }
