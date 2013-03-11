@@ -1,7 +1,12 @@
 # reconnect
 
-reconnect to a network stream, (currently supports [tcp](http://nodejs.org/api/net.html),
-and [shoe](https://github.com/substack/shoe) on the client-side.
+Reconnect a stream (tcp, ws, tls, http) when network goes down.
+
+Currently supports:
+* [tcp](http://nodejs.org/api/net.html)
+* [shoe](https://github.com/substack/shoe) (websocket fallback - on the client-side)
+* [tls](http://nodejs.org/api/tls.html)
+* [sockjs-stream](https://github.com/Raynos/sockjs-stream) (server side websockets)
 
 ## Example
 
