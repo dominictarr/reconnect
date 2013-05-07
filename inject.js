@@ -54,7 +54,7 @@ function (createConnection) {
         .on('close', onDisconnect)
         .on('end'  , onDisconnect)
 
-      if(opts.connect === false || con.constructor.name == 'Request') {
+      if(opts.intermediate || con.constructor.name == 'Request') {
         emitter.connected = true
         emitter.emit('connect', con)
         con.once('data', function () {
