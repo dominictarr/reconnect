@@ -30,7 +30,7 @@ function (createConnection) {
       emitter.emit('reconnect', n, delay)
       var con = createConnection.apply(null, args)
       emitter._connection = con
-      
+
       function onDisconnect (err) {
         emitter.connected = false
         con.removeListener('error', onDisconnect)
@@ -54,7 +54,7 @@ function (createConnection) {
         .on('close', onDisconnect)
         .on('end'  , onDisconnect)
 
-      if(con.constructor.name == 'Request') {
+      if(opts.connect === false || con.constructor.name == 'Request') {
         emitter.connected = true
         emitter.emit('connect', con)
         con.once('data', function () {
@@ -88,7 +88,7 @@ function (createConnection) {
     emitter.disconnect = function () {
       this.reconnect = false
       if(!emitter.connected) return emitter
-      
+
       else if(emitter._connection)
         emitter._connection.end()
 

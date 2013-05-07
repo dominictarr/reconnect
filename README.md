@@ -39,7 +39,9 @@ var opts = {
 }
 ```
 
-`opts` is optional.
+`opts` is optional. If `opts.connect` is `false` then we will treat the
+stream as if it does not emit a `"connect"` event and fall back to listening
+to the first piece of data.
 
 passing `onConnect` to reconnect is short hand for `reconnect(opts).on('connect', onConnect)`
 
