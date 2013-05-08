@@ -39,7 +39,7 @@ var opts = {
 }
 ```
 
-`opts` is optional. If `opts.intermediate` is `true` then we will treat the
+`opts` is optional. If `opts.immediate` is `true` then we will treat the
 stream as if it does not emit a `"connect"` event and fall back to listening
 to the first piece of data. This is useful for non connection streams like
 database cursors or tailing files.
