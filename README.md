@@ -27,7 +27,7 @@ reconnect(function (stream) {
 ### reconnect (opts, onConnect)
 
 if `opts` is an object it will be passed to [backoff](https://github.com/MathieuTurcotte/node-backoff)
-which handles throtteling the reconnection attempts. it also accepts a `type` parameter, which may
+which handles throttling the reconnection attempts. it also accepts a `type` parameter, which may
 be either `'fibonacci'` or `'exponential'`.
 
 ``` js
