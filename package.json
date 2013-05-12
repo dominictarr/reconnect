@@ -17,12 +17,12 @@
     "sockjs-stream": "~0.1.2"
   },
   "devDependencies": {
-    "tap": "0.3.0",
+    "tap": "~0.4.2",
     "macgyver": "1.7.0"
   },
   "browserify": "./shoe",
   "scripts": {
-    "test": "tap test"
+    "test": "tap test/"
   },
   "author": "'Dominic Tarr' <dominic.tarr@gmail.com> (http://dominictarr.com)",
   "license": "MIT"
