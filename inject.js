@@ -13,11 +13,10 @@ function (createConnection) {
     emitter.connected = false
     emitter.reconnect = true
 
-    if(onConnect) {
-      emitter.on('connect', onConnect) //legacy!
+    if(onConnect)
       //use "connection" to match core (net) api.
       emitter.on('connection', onConnect)
-    }
+    
     var backoffMethod = (backoff[opts.type] || backoff.fibonacci) (opts)
 
     backoffMethod.on('backoff', function (n, d) {
@@ -71,6 +70,8 @@ function (createConnection) {
             emitter.connected = true
             con.removeListener('connect', onConnect)
             emitter.emit('connect', con)
+            //also support net style 'connection' method.
+            emitter.emit('connection', con)
           })
       }
     }
