@@ -13,9 +13,11 @@ function (createConnection) {
     emitter.connected = false
     emitter.reconnect = true
 
-    if(onConnect)
-      emitter.on('connect', onConnect)
-
+    if(onConnect) {
+      emitter.on('connect', onConnect) //legacy!
+      //use "connection" to match core (net) api.
+      emitter.on('connection', onConnect)
+    }
     var backoffMethod = (backoff[opts.type] || backoff.fibonacci) (opts)
 
     backoffMethod.on('backoff', function (n, d) {
@@ -57,6 +59,7 @@ function (createConnection) {
       if(opts.immediate || con.constructor.name == 'Request') {
         emitter.connected = true
         emitter.emit('connect', con)
+        emitter.emit('connection', con)
         con.once('data', function () {
           //this is the only way to know for sure that data is coming...
           backoffMethod.reset()
