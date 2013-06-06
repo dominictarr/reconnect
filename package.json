@@ -8,12 +8,12 @@
   },
   "dependencies": {
     "backoff": "~1.0.0",
-    "request": "~2.12.0",
-    "hyperscript": "~1.0.1",
-    "observable": "~1.4.1"
+    "request": ">=2.12 <3",
+    "hyperscript": "1",
+    "observable": "1.4"
   },
   "optionalDependencies": {
-    "shoe": "0.0.7",
+    "shoe": ">=0.0.7 <1",
     "sockjs-stream": "~0.1.2"
   },
   "devDependencies": {
