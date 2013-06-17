@@ -1,4 +1,3 @@
-
 var net = require('net')
 
 module.exports = require('./inject')(function (){ 

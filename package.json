@@ -20,7 +20,10 @@
     "tap": "~0.4.2",
     "macgyver": "1.7.0"
   },
-  "browserify": "./shoe",
+  "browser": {
+     "./index.js": "./shoe-client.js",
+     "./shoe.js": "./shoe-client.js"
+  },
   "scripts": {
     "test": "tap test/"
   },
