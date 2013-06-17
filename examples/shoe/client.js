@@ -17,7 +17,7 @@ domready(function () {
       });
       s.pipe(stream).pipe(s);
 
-    }).connect('/invert')
+    }).connect('/invert/aobcagkbcpgapoaotnd')
 
     document.body.appendChild(r.widget())
 });

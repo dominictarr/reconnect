@@ -1,7 +1,0 @@
-{
-  "name": "tls-test",
-  "version": "0.0.1",
-  "main": "agent.js",
-  "dependencies": {
-    "crdt": "~3.3.0"
-  }
