@@ -22,6 +22,21 @@ reconnect(function (stream) {
 }).connect(port)
 ```
 
+## WebSockets
+
+websockets can be used from both the client and the server, with the same code!
+
+``` js
+var reconnect = require('reconnect/shoe')
+
+reconnect(function (stream) {
+  //called every time the connection is remade.
+  //only one connection will ever be live at one time.
+}).connect('http://localhost:8080/ws')
+```
+
+a [shoe](http://npm.im/shoe) server must be used.
+
 ## API
 
 ### reconnect (opts, onConnect)
