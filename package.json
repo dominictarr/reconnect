@@ -10,7 +10,8 @@
     "backoff": "~1.0.0",
     "request": ">=2.12 <3",
     "hyperscript": "1",
-    "observable": "1.4"
+    "observable": "1.4",
+    "engine.io-stream": "~0.3.1"
   },
   "optionalDependencies": {
     "shoe": ">=0.0.7 <1",
@@ -21,8 +22,8 @@
     "macgyver": "1.7.0"
   },
   "browser": {
-     "./index.js": "./shoe-client.js",
-     "./shoe.js": "./shoe-client.js"
+    "./index.js": "./shoe-client.js",
+    "./shoe.js": "./shoe-client.js"
   },
   "scripts": {
     "test": "tap test/"

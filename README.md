@@ -7,6 +7,7 @@ Currently supports:
 * [shoe](https://github.com/substack/shoe) (websocket fallback - on the client-side)
 * [tls](http://nodejs.org/api/tls.html)
 * [sockjs-stream](https://github.com/Raynos/sockjs-stream) (server side websockets)
+* [engine.io-stream](https://github.com/Raynos/engine.io-stream)
 
 ## Example
 
