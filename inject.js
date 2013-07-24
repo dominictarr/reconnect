@@ -91,9 +91,8 @@ function (createConnection) {
 
     emitter.disconnect = function () {
       this.reconnect = false
-      if(!emitter.connected) return emitter
 
-      else if(emitter._connection)
+      if(emitter._connection)
         emitter._connection.end()
 
       emitter.emit('disconnect')
