@@ -10,8 +10,7 @@ server.listen(3000, function () {
 var prefix = '/invert/(\\w+)'
 var rx = new RegExp('^'+prefix)
 var sock = shoe(function (stream) {
-//    console.log(stream)
-    console.log(stream._session.recv.ws.request)
+    //you can use this approach to route many connections
     console.log(rx.exec(stream.pathname))
 
     var iv = setInterval(function () {
