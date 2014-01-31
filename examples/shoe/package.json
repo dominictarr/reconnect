@@ -2,11 +2,11 @@
   "name": "shoe-invert-example",
   "version": "0.0.0",
   "dependencies": {
-    "browserify": "~1.16.4",
     "ecstatic": "~0.1.6",
     "domready": "~0.2.11",
     "event-stream": "~2.0.4",
-    "observable": "~1.4.0"
+    "observable": "~1.4.0",
+    "browserify": "~3.24.8"
   },
   "private": true,
   "devDependencies": {},
