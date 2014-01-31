@@ -1,2 +1,2 @@
 
-module.exports = require('./sock')
+module.exports = require('./inject')(require('shoe'))
