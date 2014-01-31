@@ -2,6 +2,12 @@
 
 Reconnect a stream (tcp, ws, tls, http) when network goes down.
 
+## Status: LEGACY, use [reconnect-core](https://github.com/juliangruber/reconnect-core)
+
+This module should now be considered legacy,
+it is recommend to use reconnect-core directly.
+This module is now only a bundle of wrappers around reconnect-core.
+
 Currently supports:
 * [tcp](http://nodejs.org/api/net.html)
 * [shoe](https://github.com/substack/shoe) (websocket fallback - on the client-side)
@@ -11,7 +17,7 @@ Currently supports:
 
 ## Example
 
-pass function will be called every time the stream connects.
+Pass a function that will be called every time the stream connects.
 if the connection is broken, reconnect will make a new connection
 and call this function again.
 ``` js
@@ -92,38 +98,12 @@ starts out true.
 
 ## Extending
 
-Inject a handler for a custom stream type, example http would look like this
-
-``` js
-var inject  = require('reconnect/inject')
-var request = require('request')
-
-module.exports = inject(function () {
-  var req = request.apply(null, [].slice.call(arguments))
-  //you might need to add some event stuff here
-  return req
-})
-
-```
-
-you must return a stream, and it must emit a 'connect' event when it has
-actually connected to the server like in [net](http://nodejs.org/api/net.html)
+Use [reconnect-core](https://github.com/juliangruber/reconnect-core) instead.
 
 ## Widget
 
-Also, there is a small widget to show current connection status.
-
-``` js
-var reconnect = require('reconnect')
-
-var r = reconnect(function (stream) {
-  ...
-})
-//add the widget to the page.
-
-document.body.appendChild(r.widget())
-
-```
+The reconnect widget has been moved into a separate module
+[reconnect-widget](https://github.com/dominictarr/reconnect-widget)
 
 ## License
 
