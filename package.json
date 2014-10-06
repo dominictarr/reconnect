@@ -9,7 +9,7 @@
   "dependencies": {
     "request": ">=2.12 <3",
     "engine.io-stream": "~0.4.2",
-    "reconnect-core": "0.0.1"
+    "reconnect-core": "~0.2.1"
   },
   "optionalDependencies": {
     "shoe": ">=0.0.7 <1",
